@@ -49,6 +49,32 @@ sys.modules["homeassistant"] = ha_mod
 sys.modules["homeassistant.helpers"] = helpers_mod
 sys.modules["homeassistant.helpers.update_coordinator"] = uc_mod
 
+# Stub homeassistant.helpers.event
+event_mod = types.ModuleType("homeassistant.helpers.event")
+def async_track_state_change_event(hass, entity_ids, action):
+    return lambda: None
+def async_track_time_interval(hass, action, interval):
+    return lambda: None
+setattr(event_mod, "async_track_state_change_event", async_track_state_change_event)
+setattr(event_mod, "async_track_time_interval", async_track_time_interval)
+sys.modules["homeassistant.helpers.event"] = event_mod
+setattr(helpers_mod, "event", event_mod)
+
+# Stub homeassistant.core
+core_mod = types.ModuleType("homeassistant.core")
+setattr(core_mod, "HomeAssistant", object)
+setattr(core_mod, "Event", object)
+setattr(core_mod, "callback", lambda f: f)
+setattr(core_mod, "EVENT_HOMEASSISTANT_STARTED", "homeassistant_started")
+sys.modules["homeassistant.core"] = core_mod
+setattr(ha_mod, "core", core_mod)
+
+# Stub homeassistant.const
+const_mod = types.ModuleType("homeassistant.const")
+setattr(const_mod, "EVENT_HOMEASSISTANT_STARTED", "homeassistant_started")
+sys.modules["homeassistant.const"] = const_mod
+setattr(ha_mod, "const", const_mod)
+
 # Stub aiohttp_client
 aiohttp_client_mod = types.ModuleType("homeassistant.helpers.aiohttp_client")
 def async_get_clientsession(hass):

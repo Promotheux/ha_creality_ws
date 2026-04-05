@@ -23,7 +23,15 @@ from .const import (
     MR_POLL_INTERVAL,
     MR_POLL_TIMEOUT,
     MR_QUERY_PARAMS,
+    CONF_SPOOLMAN_ENABLED,
+    CONF_KLIPPER_PORT,
+    CONF_SPOOLMAN_PREFIX,
+    CONF_INPUT_SELECT_PREFIX,
+    DEFAULT_KLIPPER_PORT,
+    DEFAULT_SPOOLMAN_PREFIX,
+    DEFAULT_INPUT_SELECT_PREFIX,
 )
+from .spoolman_sync import SpoolmanSync
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,6 +74,7 @@ class KCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         
         # Caches
         self._is_k2_base: bool | None = None
+        self._spoolman_sync: SpoolmanSync | None = None
 
         if self._config_entry_id:
             self._load_options()
@@ -93,7 +102,23 @@ class KCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._notify_minutes_to_end = options.get(CONF_NOTIFY_MINUTES_TO_END, False)
         self._minutes_to_end_value = options.get(CONF_MINUTES_TO_END_VALUE, 5)
         self._polling_rate = options.get(CONF_POLLING_RATE, DEFAULT_POLLING_RATE)
-        
+
+        # Spoolman sync config
+        spoolman_enabled = options.get(CONF_SPOOLMAN_ENABLED, False)
+        if spoolman_enabled:
+            config = {
+                "klipper_port": options.get(CONF_KLIPPER_PORT, DEFAULT_KLIPPER_PORT),
+                "spoolman_prefix": options.get(CONF_SPOOLMAN_PREFIX, DEFAULT_SPOOLMAN_PREFIX),
+                "input_select_prefix": options.get(CONF_INPUT_SELECT_PREFIX, DEFAULT_INPUT_SELECT_PREFIX),
+            }
+            if self._spoolman_sync is None:
+                self._spoolman_sync = SpoolmanSync(self.hass, self, config)
+                # async_setup is called from async_start after the WS connection is up
+        else:
+            if self._spoolman_sync is not None:
+                self.hass.async_create_task(self._spoolman_sync.async_unload())
+                self._spoolman_sync = None
+
         # Pass polling rate to client if relevant, or handle here
         _LOGGER.debug(
             "Loaded options: Polling Rate=%ss, Notify Device=%s",
@@ -149,7 +174,9 @@ class KCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
         self._last_power_off = False
         await self.client.start()
-        
+        if self._spoolman_sync is not None:
+            await self._spoolman_sync.async_setup()
+
     async def ensure_connected(self) -> bool:
         """Ensure WebSocket connection is active, restart if needed."""
         if self.power_is_off():
@@ -163,6 +190,8 @@ class KCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         
     async def async_stop(self) -> None:
         """Stop the WebSocket connection."""
+        if self._spoolman_sync is not None:
+            await self._spoolman_sync.async_unload()
         await self.client.stop()
         
     async def wait_first_connect(self, timeout: float = 5.0) -> bool:
