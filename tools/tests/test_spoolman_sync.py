@@ -18,8 +18,30 @@ aiohttp_stub.ClientTimeout = _Timeout
 aiohttp_stub.ClientError = Exception
 sys.modules.setdefault("aiohttp", aiohttp_stub)
 
+# Stub homeassistant.helpers.event
+ha_event_mod = types.ModuleType("homeassistant.helpers.event")
+ha_event_mod.async_track_state_change_event = lambda *a, **k: (lambda: None)
+ha_event_mod.async_track_time_interval = lambda *a, **k: (lambda: None)
+sys.modules.setdefault("homeassistant.helpers.event", ha_event_mod)
+
+# Stub homeassistant.core
+ha_core_mod = types.ModuleType("homeassistant.core")
+ha_core_mod.EVENT_HOMEASSISTANT_STARTED = "homeassistant_start"
+sys.modules.setdefault("homeassistant.core", ha_core_mod)
+
+# Stub homeassistant.helpers.aiohttp_client
+ha_aiohttp_mod = types.ModuleType("homeassistant.helpers.aiohttp_client")
+ha_aiohttp_mod.async_get_clientsession = lambda hass: None
+sys.modules.setdefault("homeassistant.helpers.aiohttp_client", ha_aiohttp_mod)
+
 from custom_components.ha_creality_ws_sm.spoolman_sync import SpoolmanSync  # noqa: E402
 from types import SimpleNamespace
+import custom_components
+import custom_components.ha_creality_ws_sm
+import custom_components.ha_creality_ws_sm.spoolman_sync  # noqa: E402 — needed so patch() can resolve the dotted path
+# Ensure the namespace package has its subpackage as an attribute (needed for unittest.mock.patch)
+if not hasattr(custom_components, "ha_creality_ws_sm"):
+    setattr(custom_components, "ha_creality_ws_sm", sys.modules["custom_components.ha_creality_ws_sm"])
 
 
 def _make_state(entity_id: str, friendly_name: str) -> SimpleNamespace:
@@ -96,3 +118,178 @@ class TestBuildSpoolOptions:
     def test_empty_states_returns_only_zero_option(self):
         opts = SpoolmanSync._build_spool_options([], self.PREFIX)
         assert opts == ["0: Niet in Spoolman"]
+
+
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
+
+def _make_hass(spool_states=None, input_select_state=None):
+    """Return a minimal hass stub for SpoolmanSync tests."""
+    hass = MagicMock()
+
+    # States
+    all_states = spool_states or []
+    hass.states.async_all.return_value = all_states
+    hass.states.async_entity_ids.return_value = []
+
+    def _get_state(eid):
+        if input_select_state and eid == input_select_state[0]:
+            return SimpleNamespace(state=input_select_state[1])
+        return None
+
+    hass.states.get.side_effect = _get_state
+
+    # Services
+    hass.services = MagicMock()
+    hass.services.async_call = AsyncMock()
+
+    # Bus (events)
+    hass.bus = MagicMock()
+    hass.bus.async_listen_once = MagicMock(return_value=lambda: None)
+
+    return hass
+
+
+def _make_coordinator(host="192.168.1.100"):
+    coord = MagicMock()
+    coord.client._host = host
+    return coord
+
+
+class TestSyncOptions:
+    def test_calls_set_options_for_each_slot(self):
+        async def run():
+            spool_states = [
+                _make_state("sensor.spoolman_spool_3", "Spoolman Spool 3 PETG White"),
+                _make_state("sensor.spoolman_spool_1", "Spoolman Spool 1 PLA Red"),
+            ]
+            hass = _make_hass(spool_states=spool_states)
+            coord = _make_coordinator()
+            sync = SpoolmanSync(hass, coord, {})
+            await sync._sync_options()
+
+            assert hass.services.async_call.call_count == 4
+            call_args = hass.services.async_call.call_args_list[0]
+            domain, service, data = call_args[0]
+            assert domain == "input_select"
+            assert service == "set_options"
+            assert data["options"][0] == "0: Niet in Spoolman"
+            assert "3: PETG White" in data["options"]
+
+        asyncio.run(run())
+
+    def test_skips_missing_input_select_with_warning(self):
+        async def run():
+            hass = _make_hass(spool_states=[])
+            hass.services.async_call = AsyncMock(side_effect=Exception("entity not found"))
+            coord = _make_coordinator()
+            sync = SpoolmanSync(hass, coord, {})
+            # Should not raise even if service call fails
+            await sync._sync_options()
+
+        asyncio.run(run())
+
+
+class TestActiveSlotWatcher:
+    def test_set_spool_called_when_slot_becomes_active(self):
+        async def run():
+            hass = _make_hass(
+                input_select_state=("input_select.cfs_slot_4", "3: PETG White")
+            )
+            coord = _make_coordinator()
+            sync = SpoolmanSync(hass, coord, {})
+
+            new_state = SimpleNamespace(
+                entity_id="sensor.k2_8fd7_cfs_box_1_slot_3_filament",
+                attributes={"selected": 1},
+            )
+            event = SimpleNamespace(data={
+                "entity_id": "sensor.k2_8fd7_cfs_box_1_slot_3_filament",
+                "new_state": new_state,
+            })
+
+            posted_urls = []
+            async def fake_post(url, **kwargs):
+                posted_urls.append(url)
+                resp = MagicMock()
+                resp.status = 200
+                resp.__aenter__ = AsyncMock(return_value=resp)
+                resp.__aexit__ = AsyncMock(return_value=False)
+                return resp
+
+            mock_session = MagicMock()
+            mock_session.post = fake_post
+
+            with patch(
+                "custom_components.ha_creality_ws_sm.spoolman_sync.async_get_clientsession",
+                return_value=mock_session,
+            ):
+                await sync._on_slot_state_changed(event)
+
+            assert any("SET_ACTIVE_SPOOL" in u and "ID=3" in u for u in posted_urls)
+
+        asyncio.run(run())
+
+    def test_clear_spool_called_when_no_spool_assigned(self):
+        async def run():
+            hass = _make_hass(
+                input_select_state=("input_select.cfs_slot_1", "0: Niet in Spoolman")
+            )
+            coord = _make_coordinator()
+            sync = SpoolmanSync(hass, coord, {})
+
+            new_state = SimpleNamespace(
+                entity_id="sensor.k2_abc_cfs_box_1_slot_0_filament",
+                attributes={"selected": 1},
+            )
+            event = SimpleNamespace(data={
+                "entity_id": "sensor.k2_abc_cfs_box_1_slot_0_filament",
+                "new_state": new_state,
+            })
+
+            posted_urls = []
+            async def fake_post(url, **kwargs):
+                posted_urls.append(url)
+                resp = MagicMock()
+                resp.status = 200
+                resp.__aenter__ = AsyncMock(return_value=resp)
+                resp.__aexit__ = AsyncMock(return_value=False)
+                return resp
+
+            mock_session = MagicMock()
+            mock_session.post = fake_post
+
+            with patch(
+                "custom_components.ha_creality_ws_sm.spoolman_sync.async_get_clientsession",
+                return_value=mock_session,
+            ):
+                await sync._on_slot_state_changed(event)
+
+            assert any("CLEAR_ACTIVE_SPOOL" in u for u in posted_urls)
+
+        asyncio.run(run())
+
+    def test_ignores_deselection_events(self):
+        async def run():
+            hass = _make_hass()
+            coord = _make_coordinator()
+            sync = SpoolmanSync(hass, coord, {})
+
+            new_state = SimpleNamespace(
+                entity_id="sensor.k2_abc_cfs_box_1_slot_0_filament",
+                attributes={"selected": 0},
+            )
+            event = SimpleNamespace(data={
+                "entity_id": "sensor.k2_abc_cfs_box_1_slot_0_filament",
+                "new_state": new_state,
+            })
+
+            called = []
+            with patch.object(sync, "_set_active_spool", side_effect=lambda id: called.append(id)):
+                with patch.object(sync, "_clear_active_spool", side_effect=lambda: called.append("clear")):
+                    await sync._on_slot_state_changed(event)
+
+            assert called == []
+
+        asyncio.run(run())

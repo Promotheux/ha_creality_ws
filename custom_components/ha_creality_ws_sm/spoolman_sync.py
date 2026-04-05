@@ -2,7 +2,14 @@
 from __future__ import annotations
 import logging
 import re
+from datetime import timedelta
 import aiohttp
+from homeassistant.helpers.aiohttp_client import async_get_clientsession  # type: ignore[import]
+from homeassistant.helpers.event import (  # type: ignore[import]
+    async_track_state_change_event,
+    async_track_time_interval,
+)
+from homeassistant.core import EVENT_HOMEASSISTANT_STARTED  # type: ignore[import]
 
 from .const import (  # type: ignore[import]
     CONF_KLIPPER_PORT, DEFAULT_KLIPPER_PORT,
@@ -31,7 +38,151 @@ class SpoolmanSync:
 
     async def async_setup(self) -> None:
         """Register HA listeners and schedule the first options sync."""
-        pass  # implemented in Task 4
+        # Sync options once HA has started (entities are available)
+        self._unsub_listeners.append(
+            self._hass.bus.async_listen_once(
+                EVENT_HOMEASSISTANT_STARTED,
+                self._sync_options,
+            )
+        )
+        # Re-sync every hour
+        self._unsub_listeners.append(
+            async_track_time_interval(
+                self._hass,
+                self._sync_options,
+                timedelta(hours=1),
+            )
+        )
+        # Watch CFS filament sensor state changes for active slot detection
+        sensor_ids = [
+            eid for eid in self._hass.states.async_entity_ids("sensor")
+            if "_cfs_box_" in eid and "_slot_" in eid and eid.endswith("_filament")
+        ]
+        if sensor_ids:
+            self._unsub_listeners.append(
+                async_track_state_change_event(
+                    self._hass,
+                    sensor_ids,
+                    self._on_slot_state_changed,
+                )
+            )
+        else:
+            _LOGGER.debug("SpoolmanSync: no CFS filament sensor entities found at setup")
+
+    @property
+    def _slot_count(self) -> int:
+        """Total number of configured CFS slots from coordinator data."""
+        try:
+            boxes = self._coordinator.data.get("boxsInfo", {}).get("materialBoxs", [])
+            count = sum(len(b.get("materials", [])) for b in boxes if b.get("type") == 0)
+            return count if count > 0 else 4  # default to 4 if data not yet available
+        except Exception:
+            return 4
+
+    async def _sync_options(self, _=None) -> None:
+        """Populate input_select options from Spoolman sensor entities."""
+        all_states = self._hass.states.async_all()
+        options = self._build_spool_options(all_states, self._spoolman_prefix)
+
+        if len(options) <= 1:
+            _LOGGER.warning(
+                "SpoolmanSync: no Spoolman spool entities found matching prefix '%s'",
+                self._spoolman_prefix,
+            )
+
+        for slot_index in range(1, self._slot_count + 1):
+            entity_id = f"{self._input_select_prefix}{slot_index}"
+            try:
+                await self._hass.services.async_call(
+                    "input_select",
+                    "set_options",
+                    {"entity_id": entity_id, "options": options},
+                    blocking=False,
+                )
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.warning(
+                    "SpoolmanSync: could not set options for %s: %s", entity_id, exc
+                )
+
+    async def _on_slot_state_changed(self, event) -> None:
+        """Handle state change on a CFS filament sensor; sync active spool if selected."""
+        new_state = event.data.get("new_state")
+        if not new_state:
+            return
+
+        selected = new_state.attributes.get("selected")
+        if selected not in (1, True, "1"):
+            return  # only act when a slot becomes active, not on deselection
+
+        entity_id = event.data.get("entity_id", "")
+        slot_index = self._entity_to_slot_index(entity_id)
+        if slot_index is None:
+            return
+
+        if slot_index == self._last_active_slot:
+            return  # debounce — no change
+        self._last_active_slot = slot_index
+
+        input_entity = f"{self._input_select_prefix}{slot_index}"
+        input_state = self._hass.states.get(input_entity)
+        if not input_state:
+            _LOGGER.warning(
+                "SpoolmanSync: input_select '%s' not found — create it via HA Helpers",
+                input_entity,
+            )
+            return
+
+        selection = input_state.state  # e.g. "3: PETG White" or "0: Niet in Spoolman"
+        try:
+            spool_id = int(selection.split(":")[0].strip()) if ":" in selection else 0
+        except (ValueError, AttributeError):
+            spool_id = 0
+
+        if spool_id > 0:
+            await self._set_active_spool(spool_id)
+        else:
+            await self._clear_active_spool()
+
+    async def _set_active_spool(self, spool_id: int) -> None:
+        """Call Klipper to set the active spool."""
+        host = self._coordinator.client._host
+        script = f"SET_ACTIVE_SPOOL ID={spool_id}"
+        url = (
+            f"http://{host}:{self._klipper_port}/printer/gcode/script"
+            f"?script={script}"
+        )
+        await self._post_klipper(url, {})
+        _LOGGER.info("SpoolmanSync: SET_ACTIVE_SPOOL ID=%s", spool_id)
+
+    async def _clear_active_spool(self) -> None:
+        """Call Klipper to clear the active spool."""
+        host = self._coordinator.client._host
+        url = (
+            f"http://{host}:{self._klipper_port}/printer/gcode/script"
+            f"?script=CLEAR_ACTIVE_SPOOL"
+        )
+        await self._post_klipper(url, {})
+        _LOGGER.info("SpoolmanSync: CLEAR_ACTIVE_SPOOL")
+
+    async def _post_klipper(self, url: str, params: dict) -> None:
+        """POST a GCode script to the Klipper REST endpoint."""
+        session = async_get_clientsession(self._hass)
+        try:
+            resp = await session.post(
+                url,
+                params=params or None,
+                timeout=aiohttp.ClientTimeout(total=5),
+            )
+            if resp.status != 200:
+                _LOGGER.warning(
+                    "SpoolmanSync: Klipper returned HTTP %s for %s",
+                    resp.status,
+                    url,
+                )
+        except aiohttp.ClientError as exc:
+            _LOGGER.error("SpoolmanSync: Failed to call Klipper at %s: %s", url, exc)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.error("SpoolmanSync: Unexpected error calling Klipper: %s", exc)
 
     async def async_unload(self) -> None:
         """Cancel all listeners and scheduled tasks."""
