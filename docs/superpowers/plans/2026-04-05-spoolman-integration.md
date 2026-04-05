@@ -16,14 +16,14 @@
 
 | File | Action | Responsibility |
 |------|--------|----------------|
-| `custom_components/ha_creality_ws/const.py` | Modify | Add 6 new Spoolman config constants |
-| `custom_components/ha_creality_ws/spoolman_sync.py` | Create | SpoolmanSync class — options refresh + active spool watcher + Klipper REST |
-| `custom_components/ha_creality_ws/coordinator.py` | Modify | Load Spoolman config in `_load_options()`, instantiate/teardown SpoolmanSync |
-| `custom_components/ha_creality_ws/__init__.py` | Modify | Import new constants, pass Spoolman config to coordinator setup |
-| `custom_components/ha_creality_ws/config_flow.py` | Modify | Add Spoolman fields to OptionsFlowHandler |
-| `custom_components/ha_creality_ws/strings.json` | Modify | Add labels for new options fields |
-| `custom_components/ha_creality_ws/translations/en.json` | Modify | Mirror strings.json |
-| `custom_components/ha_creality_ws/www/k_cfs_card.js` | Modify | Add spool dropdown to slot cards, type-filtered options |
+| `custom_components/ha_creality_ws_sm/const.py` | Modify | Add 6 new Spoolman config constants |
+| `custom_components/ha_creality_ws_sm/spoolman_sync.py` | Create | SpoolmanSync class — options refresh + active spool watcher + Klipper REST |
+| `custom_components/ha_creality_ws_sm/coordinator.py` | Modify | Load Spoolman config in `_load_options()`, instantiate/teardown SpoolmanSync |
+| `custom_components/ha_creality_ws_sm/__init__.py` | Modify | Import new constants, pass Spoolman config to coordinator setup |
+| `custom_components/ha_creality_ws_sm/config_flow.py` | Modify | Add Spoolman fields to OptionsFlowHandler |
+| `custom_components/ha_creality_ws_sm/strings.json` | Modify | Add labels for new options fields |
+| `custom_components/ha_creality_ws_sm/translations/en.json` | Modify | Mirror strings.json |
+| `custom_components/ha_creality_ws_sm/www/k_cfs_card.js` | Modify | Add spool dropdown to slot cards, type-filtered options |
 | `tools/tests/test_spoolman_sync.py` | Create | Unit tests for SpoolmanSync logic |
 
 ---
@@ -31,11 +31,11 @@
 ## Task 1: Add constants
 
 **Files:**
-- Modify: `custom_components/ha_creality_ws/const.py`
+- Modify: `custom_components/ha_creality_ws_sm/const.py`
 
 - [ ] **Step 1: Add Spoolman constants to `const.py`**
 
-Append to the end of `custom_components/ha_creality_ws/const.py`:
+Append to the end of `custom_components/ha_creality_ws_sm/const.py`:
 
 ```python
 # Spoolman integration
@@ -51,7 +51,7 @@ DEFAULT_INPUT_SELECT_PREFIX = "input_select.cfs_slot_"
 - [ ] **Step 2: Commit**
 
 ```bash
-git add custom_components/ha_creality_ws/const.py
+git add custom_components/ha_creality_ws_sm/const.py
 git commit -m "feat: add Spoolman config constants"
 ```
 
@@ -60,7 +60,7 @@ git commit -m "feat: add Spoolman config constants"
 ## Task 2: Create `SpoolmanSync` — slot index helper (TDD)
 
 **Files:**
-- Create: `custom_components/ha_creality_ws/spoolman_sync.py`
+- Create: `custom_components/ha_creality_ws_sm/spoolman_sync.py`
 - Create: `tools/tests/test_spoolman_sync.py`
 
 - [ ] **Step 1: Create stub `spoolman_sync.py` with just the class shell and `_entity_to_slot_index`**
@@ -148,7 +148,7 @@ aiohttp_stub.ClientTimeout = _Timeout
 aiohttp_stub.ClientError = Exception
 sys.modules.setdefault("aiohttp", aiohttp_stub)
 
-from custom_components.ha_creality_ws.spoolman_sync import SpoolmanSync  # noqa: E402
+from custom_components.ha_creality_ws_sm.spoolman_sync import SpoolmanSync  # noqa: E402
 
 
 class TestEntityToSlotIndex:
@@ -196,7 +196,7 @@ Actually expected: **PASS** on these tests since `_entity_to_slot_index` is alre
 - [ ] **Step 4: Commit**
 
 ```bash
-git add custom_components/ha_creality_ws/spoolman_sync.py tools/tests/test_spoolman_sync.py
+git add custom_components/ha_creality_ws_sm/spoolman_sync.py tools/tests/test_spoolman_sync.py
 git commit -m "feat: add SpoolmanSync skeleton with slot index helper"
 ```
 
@@ -205,7 +205,7 @@ git commit -m "feat: add SpoolmanSync skeleton with slot index helper"
 ## Task 3: `SpoolmanSync` — options builder (TDD)
 
 **Files:**
-- Modify: `custom_components/ha_creality_ws/spoolman_sync.py`
+- Modify: `custom_components/ha_creality_ws_sm/spoolman_sync.py`
 - Modify: `tools/tests/test_spoolman_sync.py`
 
 - [ ] **Step 1: Write failing tests for `_build_spool_options`**
@@ -317,7 +317,7 @@ Expected: all 5 tests PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add custom_components/ha_creality_ws/spoolman_sync.py tools/tests/test_spoolman_sync.py
+git add custom_components/ha_creality_ws_sm/spoolman_sync.py tools/tests/test_spoolman_sync.py
 git commit -m "feat: add SpoolmanSync._build_spool_options with tests"
 ```
 
@@ -326,7 +326,7 @@ git commit -m "feat: add SpoolmanSync._build_spool_options with tests"
 ## Task 4: `SpoolmanSync` — async core (options sync + active spool watcher)
 
 **Files:**
-- Modify: `custom_components/ha_creality_ws/spoolman_sync.py`
+- Modify: `custom_components/ha_creality_ws_sm/spoolman_sync.py`
 - Modify: `tools/tests/test_spoolman_sync.py`
 
 - [ ] **Step 1: Write failing tests for async behaviour**
@@ -440,7 +440,7 @@ class TestActiveSlotWatcher:
             mock_session.post = fake_post
 
             with patch(
-                "custom_components.ha_creality_ws.spoolman_sync.async_get_clientsession",
+                "custom_components.ha_creality_ws_sm.spoolman_sync.async_get_clientsession",
                 return_value=mock_session,
             ):
                 await sync._on_slot_state_changed(event)
@@ -479,7 +479,7 @@ class TestActiveSlotWatcher:
             mock_session.post = fake_post
 
             with patch(
-                "custom_components.ha_creality_ws.spoolman_sync.async_get_clientsession",
+                "custom_components.ha_creality_ws_sm.spoolman_sync.async_get_clientsession",
                 return_value=mock_session,
             ):
                 await sync._on_slot_state_changed(event)
@@ -706,7 +706,7 @@ Expected: all tests PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add custom_components/ha_creality_ws/spoolman_sync.py tools/tests/test_spoolman_sync.py
+git add custom_components/ha_creality_ws_sm/spoolman_sync.py tools/tests/test_spoolman_sync.py
 git commit -m "feat: implement SpoolmanSync async core (options sync + active spool watcher)"
 ```
 
@@ -715,7 +715,7 @@ git commit -m "feat: implement SpoolmanSync async core (options sync + active sp
 ## Task 5: Wire `SpoolmanSync` into the coordinator
 
 **Files:**
-- Modify: `custom_components/ha_creality_ws/coordinator.py`
+- Modify: `custom_components/ha_creality_ws_sm/coordinator.py`
 
 - [ ] **Step 1: Import new constants and `SpoolmanSync` at the top of `coordinator.py`**
 
@@ -794,7 +794,7 @@ Expected: all existing tests PASS (coordinator tests, model detection, utils, hy
 - [ ] **Step 7: Commit**
 
 ```bash
-git add custom_components/ha_creality_ws/coordinator.py
+git add custom_components/ha_creality_ws_sm/coordinator.py
 git commit -m "feat: integrate SpoolmanSync into coordinator lifecycle"
 ```
 
@@ -803,9 +803,9 @@ git commit -m "feat: integrate SpoolmanSync into coordinator lifecycle"
 ## Task 6: Config flow — Spoolman options
 
 **Files:**
-- Modify: `custom_components/ha_creality_ws/config_flow.py`
-- Modify: `custom_components/ha_creality_ws/strings.json`
-- Modify: `custom_components/ha_creality_ws/translations/en.json`
+- Modify: `custom_components/ha_creality_ws_sm/config_flow.py`
+- Modify: `custom_components/ha_creality_ws_sm/strings.json`
+- Modify: `custom_components/ha_creality_ws_sm/translations/en.json`
 
 - [ ] **Step 1: Add new constants to `config_flow.py` imports**
 
@@ -887,9 +887,9 @@ Expected: all tests PASS.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add custom_components/ha_creality_ws/config_flow.py \
-        custom_components/ha_creality_ws/strings.json \
-        custom_components/ha_creality_ws/translations/en.json
+git add custom_components/ha_creality_ws_sm/config_flow.py \
+        custom_components/ha_creality_ws_sm/strings.json \
+        custom_components/ha_creality_ws_sm/translations/en.json
 git commit -m "feat: add Spoolman options to integration config flow"
 ```
 
@@ -898,7 +898,7 @@ git commit -m "feat: add Spoolman options to integration config flow"
 ## Task 7: Frontend — spool dropdown in CFS card
 
 **Files:**
-- Modify: `custom_components/ha_creality_ws/www/k_cfs_card.js`
+- Modify: `custom_components/ha_creality_ws_sm/www/k_cfs_card.js`
 
 This task has no automated tests (no JS test infra in the project). Manual verification steps are provided.
 
@@ -1122,7 +1122,7 @@ In Home Assistant with the updated card:
 - [ ] **Step 8: Commit**
 
 ```bash
-git add custom_components/ha_creality_ws/www/k_cfs_card.js
+git add custom_components/ha_creality_ws_sm/www/k_cfs_card.js
 git commit -m "feat: add Spoolman spool dropdown to CFS slot cards"
 ```
 
