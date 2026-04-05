@@ -112,7 +112,9 @@ class SpoolmanSync:
 
         selected = new_state.attributes.get("selected")
         if selected not in (1, True, "1"):
-            return  # only act when a slot becomes active, not on deselection
+            # Slot became inactive — clear debounce so re-activation fires correctly
+            self._last_active_slot = None
+            return
 
         entity_id = event.data.get("entity_id", "")
         slot_index = self._entity_to_slot_index(entity_id)
@@ -146,22 +148,17 @@ class SpoolmanSync:
     async def _set_active_spool(self, spool_id: int) -> None:
         """Call Klipper to set the active spool."""
         host = self._coordinator.client._host
-        script = f"SET_ACTIVE_SPOOL ID={spool_id}"
-        url = (
-            f"http://{host}:{self._klipper_port}/printer/gcode/script"
-            f"?script={script}"
-        )
-        await self._post_klipper(url, {})
+        url = f"http://{host}:{self._klipper_port}/printer/gcode/script"
+        params = {"script": f"SET_ACTIVE_SPOOL ID={spool_id}"}
+        await self._post_klipper(url, params)
         _LOGGER.info("SpoolmanSync: SET_ACTIVE_SPOOL ID=%s", spool_id)
 
     async def _clear_active_spool(self) -> None:
         """Call Klipper to clear the active spool."""
         host = self._coordinator.client._host
-        url = (
-            f"http://{host}:{self._klipper_port}/printer/gcode/script"
-            f"?script=CLEAR_ACTIVE_SPOOL"
-        )
-        await self._post_klipper(url, {})
+        url = f"http://{host}:{self._klipper_port}/printer/gcode/script"
+        params = {"script": "CLEAR_ACTIVE_SPOOL"}
+        await self._post_klipper(url, params)
         _LOGGER.info("SpoolmanSync: CLEAR_ACTIVE_SPOOL")
 
     async def _post_klipper(self, url: str, params: dict) -> None:

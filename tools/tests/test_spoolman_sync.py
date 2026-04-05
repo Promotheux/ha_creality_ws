@@ -209,9 +209,9 @@ class TestActiveSlotWatcher:
                 "new_state": new_state,
             })
 
-            posted_urls = []
+            posted_calls = []
             def fake_post(url, **kwargs):
-                posted_urls.append(url)
+                posted_calls.append((url, kwargs.get("params", {})))
                 resp = MagicMock()
                 resp.status = 200
                 resp.__aenter__ = AsyncMock(return_value=resp)
@@ -227,7 +227,10 @@ class TestActiveSlotWatcher:
             ):
                 await sync._on_slot_state_changed(event)
 
-            assert any("SET_ACTIVE_SPOOL" in u and "ID=3" in u for u in posted_urls)
+            assert any(
+                "script" in p and "SET_ACTIVE_SPOOL" in p["script"] and "ID=3" in p["script"]
+                for _, p in posted_calls
+            )
 
         asyncio.run(run())
 
@@ -248,9 +251,9 @@ class TestActiveSlotWatcher:
                 "new_state": new_state,
             })
 
-            posted_urls = []
+            posted_calls = []
             def fake_post(url, **kwargs):
-                posted_urls.append(url)
+                posted_calls.append((url, kwargs.get("params", {})))
                 resp = MagicMock()
                 resp.status = 200
                 resp.__aenter__ = AsyncMock(return_value=resp)
@@ -266,7 +269,10 @@ class TestActiveSlotWatcher:
             ):
                 await sync._on_slot_state_changed(event)
 
-            assert any("CLEAR_ACTIVE_SPOOL" in u for u in posted_urls)
+            assert any(
+                "script" in p and "CLEAR_ACTIVE_SPOOL" in p["script"]
+                for _, p in posted_calls
+            )
 
         asyncio.run(run())
 
@@ -275,6 +281,7 @@ class TestActiveSlotWatcher:
             hass = _make_hass()
             coord = _make_coordinator()
             sync = SpoolmanSync(hass, coord, {})
+            sync._last_active_slot = 1  # pretend slot 1 was previously active
 
             new_state = SimpleNamespace(
                 entity_id="sensor.k2_abc_cfs_box_1_slot_0_filament",
@@ -286,10 +293,11 @@ class TestActiveSlotWatcher:
             })
 
             called = []
-            with patch.object(sync, "_set_active_spool", side_effect=lambda id: called.append(id)):
-                with patch.object(sync, "_clear_active_spool", side_effect=lambda: called.append("clear")):
+            with patch.object(sync, "_set_active_spool", new=AsyncMock(side_effect=lambda id: called.append(id))):
+                with patch.object(sync, "_clear_active_spool", new=AsyncMock(side_effect=lambda: called.append("clear"))):
                     await sync._on_slot_state_changed(event)
 
             assert called == []
+            assert sync._last_active_slot is None  # debounce cleared on deselection
 
         asyncio.run(run())
