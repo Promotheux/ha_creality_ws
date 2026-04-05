@@ -31,7 +31,7 @@ def _register_static_path(hass: HomeAssistant, url_path: str, path: str) -> None
             async def _safe_register():
                 try:
                     await hass.http.async_register_static_paths(
-                        [StaticPathConfig(url_path, path, True)]
+                        [StaticPathConfig(url_path, path, False)]
                     )
                 except Exception as exc:
                     # Duplicate route registrations raise RuntimeError in aiohttp
@@ -47,7 +47,7 @@ def _register_static_path(hass: HomeAssistant, url_path: str, path: str) -> None
 
     # Fallback for older HA
     try:
-        hass.http.register_static_path(url_path, path, cache_headers=True)
+        hass.http.register_static_path(url_path, path, cache_headers=False)
     except Exception:
         # If registration fails, log and continue; we won't attempt to copy files.
         _LOGGER.debug("Failed to register static path %s -> %s", url_path, path)
