@@ -797,7 +797,7 @@ class KCFSCard extends HTMLElement {
       spoolGrid = `
         <div class="spool-grid">
           ${selectedBox.slots.map((slot, idx) => {
-            const globalIndex = (selectedBox.id - 1) * 4 + idx + 1;
+            const globalIndex = selectedBox.id * 4 + idx + 1;
             return this._renderSpoolCard(slot, globalIndex);
           }).join('')}
         </div>
