@@ -1,6 +1,6 @@
 {
-  "domain": "ha_creality_ws",
-  "name": "Creality WebSocket Integration",
+  "domain": "ha_creality_ws_sm",
+  "name": "Creality WebSocket Integration - Spoolman Edition",
   "after_dependencies": ["go2rtc"],
   "codeowners": ["@3dg1luk43"],
   "config_flow": true,
@@ -8,7 +8,7 @@
   "documentation": "https://github.com/3dg1luk43/ha_creality_ws",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/3dg1luk43/ha_creality_ws/issues",
-  "loggers": ["custom_components.ha_creality_ws"],
+  "loggers": ["custom_components.ha_creality_ws_sm"],
   "requirements": [
     "websockets>=10.4",
     "go2rtc-client>=0.1.0"

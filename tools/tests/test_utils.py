@@ -4,12 +4,12 @@ from pathlib import Path
 
 # Load utils module directly from file to avoid importing package-level __init__
 ROOT = Path(__file__).resolve().parents[2]
-utils_path = ROOT / "custom_components" / "ha_creality_ws" / "utils.py"
-spec = importlib.util.spec_from_file_location("ha_creality_ws.utils", utils_path)
+utils_path = ROOT / "custom_components" / "ha_creality_ws_sm" / "utils.py"
+spec = importlib.util.spec_from_file_location("ha_creality_ws_sm.utils", utils_path)
 assert spec is not None, f"Failed to load spec for {utils_path}"
 utils = importlib.util.module_from_spec(spec)
 assert utils is not None
-sys.modules["ha_creality_ws.utils"] = utils
+sys.modules["ha_creality_ws_sm.utils"] = utils
 assert spec.loader is not None
 spec.loader.exec_module(utils)
 

@@ -6,17 +6,17 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-# Ensure package import path `custom_components.ha_creality_ws` resolves for relative imports
+# Ensure package import path `custom_components.ha_creality_ws_sm` resolves for relative imports
 pkg_root = ROOT / "custom_components"
 if str(pkg_root) not in sys.path:
     sys.path.insert(0, str(pkg_root))
 
 import types
-pkg_name = "ha_creality_ws"
+pkg_name = "ha_creality_ws_sm"
 full_pkg = types.ModuleType(pkg_name)
 # Mark as namespace/package so submodules import from filesystem
 full_pkg.__path__ = [str(pkg_root / pkg_name)]
-sys.modules["custom_components.ha_creality_ws"] = full_pkg
+sys.modules["custom_components.ha_creality_ws_sm"] = full_pkg
 
 # Provide a minimal stub for Home Assistant's DataUpdateCoordinator
 ha_mod = types.ModuleType("homeassistant")
@@ -57,8 +57,8 @@ setattr(aiohttp_client_mod, "async_get_clientsession", async_get_clientsession)
 sys.modules["homeassistant.helpers.aiohttp_client"] = aiohttp_client_mod
 setattr(helpers_mod, "aiohttp_client", aiohttp_client_mod)
 
-# Stub out custom_components.ha_creality_ws.ws_client to avoid external deps
-ws_client_mod = types.ModuleType("custom_components.ha_creality_ws.ws_client")
+# Stub out custom_components.ha_creality_ws_sm.ws_client to avoid external deps
+ws_client_mod = types.ModuleType("custom_components.ha_creality_ws_sm.ws_client")
 import asyncio, time, contextlib  # noqa: E401
 
 class KClient:  # type: ignore
@@ -98,5 +98,5 @@ class KClient:  # type: ignore
         return False
 
 setattr(ws_client_mod, "KClient", KClient)
-sys.modules["custom_components.ha_creality_ws.ws_client"] = ws_client_mod
+sys.modules["custom_components.ha_creality_ws_sm.ws_client"] = ws_client_mod
 

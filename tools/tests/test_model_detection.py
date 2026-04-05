@@ -4,11 +4,11 @@ from pathlib import Path
 
 # Load utils(ModelDetection) directly
 ROOT = Path(__file__).resolve().parents[2]
-utils_path = ROOT / "custom_components" / "ha_creality_ws" / "utils.py"
-spec = importlib.util.spec_from_file_location("ha_creality_ws.utils", utils_path)
+utils_path = ROOT / "custom_components" / "ha_creality_ws_sm" / "utils.py"
+spec = importlib.util.spec_from_file_location("ha_creality_ws_sm.utils", utils_path)
 assert spec is not None
 utils = importlib.util.module_from_spec(spec)
-sys.modules["ha_creality_ws.utils"] = utils
+sys.modules["ha_creality_ws_sm.utils"] = utils
 assert spec.loader is not None
 spec.loader.exec_module(utils)
 

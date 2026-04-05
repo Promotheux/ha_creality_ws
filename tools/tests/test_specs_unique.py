@@ -2,7 +2,7 @@ from pathlib import Path
 import importlib.util, sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sensor_path = ROOT / "custom_components" / "ha_creality_ws" / "sensor.py"
+sensor_path = ROOT / "custom_components" / "ha_creality_ws_sm" / "sensor.py"
 
 # Load sensor module minimally (will import Home Assistant modules; for static uniqueness we can parse text)
 text = sensor_path.read_text()

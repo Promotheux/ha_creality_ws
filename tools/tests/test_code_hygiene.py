@@ -2,8 +2,8 @@ from pathlib import Path
 import json, re
 
 ROOT = Path(__file__).resolve().parents[2]
-const_path = ROOT / "custom_components" / "ha_creality_ws" / "const.py"
-init_path = ROOT / "custom_components" / "ha_creality_ws" / "__init__.py"
+const_path = ROOT / "custom_components" / "ha_creality_ws_sm" / "const.py"
+init_path = ROOT / "custom_components" / "ha_creality_ws_sm" / "__init__.py"
 
 ALLOWED_HOST_SUBSTRINGS = ["localhost", "http://", "ws://"]
 
@@ -21,7 +21,7 @@ def test_platforms_list_unique():
 
 def test_no_unexpected_cloud_urls():
     suspicious = []
-    for p in (ROOT / "custom_components" / "ha_creality_ws").glob("*.py"):
+    for p in (ROOT / "custom_components" / "ha_creality_ws_sm").glob("*.py"):
         text = p.read_text()
         for m in re.findall(r"https?://[A-Za-z0-9._:/-]+", text):
             if not any(sub in m for sub in ALLOWED_HOST_SUBSTRINGS):

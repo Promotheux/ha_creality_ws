@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC_DIR = ROOT / "custom_components" / "ha_creality_ws"
+SRC_DIR = ROOT / "custom_components" / "ha_creality_ws_sm"
 
 BLOCK_PATTERNS = [
     r"time\.sleep",                 # direct blocking sleep

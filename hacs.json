@@ -1,5 +1,5 @@
 {
-  "name": "Creality Websocket Integration",
+  "name": "Creality Websocket Integration - Spoolman Edition",
   "render_readme": true,
   "homeassistant": "2024.11.0",
   "content_in_root": false

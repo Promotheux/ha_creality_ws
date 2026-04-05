@@ -5,7 +5,7 @@ from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
-LOCAL_SUBDIR = "ha_creality_ws"
+LOCAL_SUBDIR = "ha_creality_ws_sm"
 PRINTER_CARD_NAME = "k_printer_card.js"
 CFS_CARD_NAME = "k_cfs_card.js"
 CARDS = [PRINTER_CARD_NAME, CFS_CARD_NAME]

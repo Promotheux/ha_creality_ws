@@ -1,4 +1,4 @@
-DOMAIN = "ha_creality_ws"
+DOMAIN = "ha_creality_ws_sm"
 
 CONF_HOST = "host"
 CONF_NAME = "name"

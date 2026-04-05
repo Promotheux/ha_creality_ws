@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tools/tests/ -q)",
+      "Bash(python -m pip install pytest -q)",
+      "Bash(python -m pytest tools/tests/ -q --ignore=tools/tests/test_manifest_and_specs.py --ignore=tools/tests/test_specs_unique.py)",
+      "Bash(python -m pytest tools/tests/ -q --ignore=tools/tests/test_manifest_and_specs.py --ignore=tools/tests/test_specs_unique.py --ignore=tools/tests/test_no_blocking_calls.py --ignore=tools/tests/test_code_hygiene.py)"
+    ]
+  }
+}

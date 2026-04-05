@@ -30,7 +30,7 @@ sys.modules["homeassistant.helpers.aiohttp_client"] = mock_aiohttp_client
 mock_dispatcher = MagicMock()
 sys.modules["homeassistant.helpers.dispatcher"] = mock_dispatcher
 
-from custom_components.ha_creality_ws.coordinator import KCoordinator
+from custom_components.ha_creality_ws_sm.coordinator import KCoordinator
 
 
 class HassStub:

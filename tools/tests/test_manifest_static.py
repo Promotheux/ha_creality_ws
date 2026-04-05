@@ -2,7 +2,7 @@ import json, re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-manifest_path = ROOT / "custom_components" / "ha_creality_ws" / "manifest.json"
+manifest_path = ROOT / "custom_components" / "ha_creality_ws_sm" / "manifest.json"
 
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+([abrc]\d+)?$")
 
@@ -17,7 +17,7 @@ def test_manifest_required_keys_and_semver():
     data = json.loads(manifest_path.read_text())
     missing = REQUIRED_KEYS - set(data.keys())
     assert not missing, f"Missing manifest keys: {missing}"
-    assert data.get("domain") == "ha_creality_ws"
+    assert data.get("domain") == "ha_creality_ws_sm"
     # SemVer check disabled per request; allow any string or missing version
     # ver = data.get("version")
     # assert isinstance(ver, str) and SEMVER_RE.match(ver), f"Version not semantic: {ver}"
