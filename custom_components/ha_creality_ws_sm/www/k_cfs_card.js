@@ -59,6 +59,8 @@ class KCFSCard extends HTMLElement {
       external_filament: "",
       external_color: "",
       external_percent: "",
+      spoolman_prefix: "",
+      input_select_prefix: "",
     };
 
     for (let box = 0; box < 4; box += 1) {
@@ -285,6 +287,35 @@ class KCFSCard extends HTMLElement {
         font-size: 11px;
         color: var(--secondary-text-color);
         text-align: center;
+      }
+
+      .spool-select-wrap {
+        width: 100%;
+        margin-top: 8px;
+      }
+
+      .spool-select {
+        width: 100%;
+        background: rgba(var(--rgb-primary-text-color), 0.06);
+        border: 1px solid rgba(var(--rgb-primary-text-color), 0.12);
+        border-radius: 8px;
+        color: var(--primary-text-color);
+        font-size: 11px;
+        padding: 4px 6px;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        outline: none;
+      }
+
+      .spool-select:hover {
+        background: rgba(var(--rgb-primary-text-color), 0.1);
+        border-color: rgba(var(--rgb-primary-color), 0.4);
+      }
+
+      .spool-select option.separator {
+        color: var(--secondary-text-color);
+        font-style: italic;
       }
 
       .status-badge {
@@ -719,7 +750,10 @@ class KCFSCard extends HTMLElement {
     if (selectedBox) {
       spoolGrid = `
         <div class="spool-grid">
-          ${selectedBox.slots.map((slot) => this._renderSpoolCard(slot)).join('')}
+          ${selectedBox.slots.map((slot, idx) => {
+            const globalIndex = (selectedBox.id - 1) * 4 + idx + 1;
+            return this._renderSpoolCard(slot, globalIndex);
+          }).join('')}
         </div>
       `;
     }
@@ -816,7 +850,7 @@ class KCFSCard extends HTMLElement {
     `;
   }
 
-  _renderSpoolCard(slot) {
+  _renderSpoolCard(slot, globalSlotIndex = 1) {
     if (!slot) {
       return `<div class="spool-card"></div>`;
     }
@@ -846,6 +880,7 @@ class KCFSCard extends HTMLElement {
         </div>
         <div class="material-name">${safeName}</div>
         <div class="color-name">${percentTextDisplay}</div>
+        ${this._renderSpoolDropdown(slot, globalSlotIndex)}
       </div>
     `;
   }
@@ -892,6 +927,81 @@ class KCFSCard extends HTMLElement {
     `;
   }
 
+  _getSpoolmanEntities(slotType) {
+    const prefix = this._cfg.spoolman_prefix || "sensor.spoolman_spool_";
+    const states = this._hass?.states || {};
+    const matching = [];
+    const other = [];
+
+    Object.entries(states).forEach(([eid, st]) => {
+      if (!eid.startsWith(prefix)) return;
+      const suffix = eid.slice(prefix.length);
+      if (!/^\d+$/.test(suffix)) return;
+
+      const id = parseInt(suffix, 10);
+      const rawName = st.attributes?.friendly_name || `Spool ${id}`;
+      const stripPfx = `Spoolman Spool ${id} `;
+      const cleanName = rawName.startsWith(stripPfx)
+        ? rawName.slice(stripPfx.length).trim()
+        : rawName;
+      const option = `${id}: ${cleanName}`;
+      const spoolType = (st.attributes?.filament_type || "").toUpperCase();
+
+      if (slotType && spoolType && spoolType === slotType.toUpperCase()) {
+        matching.push(option);
+      } else {
+        other.push(option);
+      }
+    });
+
+    matching.sort((a, b) => parseInt(a) - parseInt(b));
+    other.sort((a, b) => parseInt(a) - parseInt(b));
+    return { matching, other };
+  }
+
+  _renderSpoolDropdown(slot, globalSlotIndex) {
+    if (!slot) return "";
+
+    const safeType = slot.type && !["unknown", "unavailable", "—", "-"].includes(
+      String(slot.type).toLowerCase()
+    ) ? slot.type : null;
+    const safeName = slot.name && !["unknown", "unavailable", "—", "-"].includes(
+      String(slot.name).toLowerCase()
+    ) ? slot.name : null;
+    if (!safeType && !safeName) return ""; // empty slot — no dropdown
+
+    const prefix = this._cfg.input_select_prefix || "input_select.cfs_slot_";
+    const inputSelectId = `${prefix}${globalSlotIndex}`;
+    const currentSelection = this._hass?.states?.[inputSelectId]?.state || "0: Niet in Spoolman";
+
+    const { matching, other } = this._getSpoolmanEntities(safeType);
+
+    let options = `<option value="0: Niet in Spoolman"${currentSelection === "0: Niet in Spoolman" ? " selected" : ""}>0: Niet in Spoolman</option>`;
+
+    if (matching.length > 0) {
+      const typeLabel = safeType || "Matching";
+      options += `<option class="separator" disabled>── ${typeLabel} ──</option>`;
+      matching.forEach(opt => {
+        options += `<option value="${opt}"${currentSelection === opt ? " selected" : ""}>${opt}</option>`;
+      });
+    }
+
+    if (other.length > 0) {
+      options += `<option class="separator" disabled>──────────</option>`;
+      other.forEach(opt => {
+        options += `<option value="${opt}"${currentSelection === opt ? " selected" : ""}>${opt}</option>`;
+      });
+    }
+
+    return `
+      <div class="spool-select-wrap">
+        <select class="spool-select" data-input-select="${inputSelectId}">
+          ${options}
+        </select>
+      </div>
+    `;
+  }
+
   _attachEventHandlers() {
     // Unit selector buttons
     this._root.querySelectorAll('.unit-btn').forEach(btn => {
@@ -908,13 +1018,29 @@ class KCFSCard extends HTMLElement {
     this._root.querySelectorAll('.spool-card, .spool-mini, .spool-mini-wrapper .spool-mini, .external-normal, .external-compact').forEach(el => {
       const eid = el.dataset.eid;
       if (!eid) return;
-      
+
       el.onclick = () => {
         this.dispatchEvent(new CustomEvent("hass-more-info", {
           detail: { entityId: eid },
           bubbles: true,
           composed: true,
         }));
+      };
+    });
+
+    // Spool dropdown — write selection to input_select
+    this._root.querySelectorAll('.spool-select').forEach(select => {
+      const inputSelectId = select.dataset.inputSelect;
+      if (!inputSelectId) return;
+
+      select.onchange = (e) => {
+        e.stopPropagation(); // prevent card click-through
+        const selected = select.value;
+        if (!this._hass || !inputSelectId) return;
+        this._hass.callService('input_select', 'select_option', {
+          entity_id: inputSelectId,
+          option: selected,
+        });
       };
     });
   }
@@ -1101,10 +1227,14 @@ class KCFSCardEditor extends HTMLElement {
     themeForm.schema = [
       { name: "compact_view", selector: { boolean: {} } },
       { name: "show_type_in_mini", selector: { boolean: {} } },
+      { name: "spoolman_prefix", selector: { text: {} } },
+      { name: "input_select_prefix", selector: { text: {} } },
     ];
     themeForm.computeLabel = (s) => ({
       compact_view: "Compact View (Mini Mode)",
       show_type_in_mini: "Show Filament Type in Mini Mode",
+      spoolman_prefix: "Spoolman Entity Prefix (leave empty for default)",
+      input_select_prefix: "Slot Input Select Prefix (leave empty for default)",
     }[s.name] || s.name);
 
     themeForm.addEventListener("value-changed", (ev) => {
