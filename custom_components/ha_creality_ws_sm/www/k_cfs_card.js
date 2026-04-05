@@ -1,6 +1,6 @@
 
-const CARD_TAG = "k-cfs-card";
-const EDITOR_TAG = "k-cfs-card-editor";
+const CARD_TAG = "k-cfs-card-sm";
+const EDITOR_TAG = "k-cfs-card-sm-editor";
 
 const mdi = (name) => `mdi:${name}`;
 
@@ -1256,7 +1256,7 @@ customElements.define(EDITOR_TAG, KCFSCardEditor);
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: "k-cfs-card",
+  type: "k-cfs-card-sm",
   name: "Creality CFS Card",
   preview: true,
   description: "A card to control the Creality Filament System (CFS)"
