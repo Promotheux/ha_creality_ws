@@ -1062,10 +1062,10 @@ class KCFSCard extends HTMLElement {
       item.addEventListener('click', () => {
         const value = item.dataset.value;
         if (this._hass && inputSelectId) {
-          this._hass.callService('input_select', 'select_option', {
-            entity_id: inputSelectId,
-            option: value,
-          });
+          this._hass.callService('input_select', 'select_option',
+            { option: value },
+            { entity_id: inputSelectId }
+          );
         }
         close();
       });
