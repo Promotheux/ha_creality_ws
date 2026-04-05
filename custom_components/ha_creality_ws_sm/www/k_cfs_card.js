@@ -571,6 +571,14 @@ class KCFSCard extends HTMLElement {
     const contentContainer = this._root.getElementById("content");
     if (!contentContainer) return;
 
+    // Preserve any in-progress dropdown selections before re-render
+    const savedSelections = {};
+    this._root.querySelectorAll('.spool-select').forEach(sel => {
+      if (sel.dataset.inputSelect) {
+        savedSelections[sel.dataset.inputSelect] = sel.value;
+      }
+    });
+
     const states = this._hass.states || {};
     const gObj = (eid) => (eid ? states?.[eid] : undefined);
     const fmtState = (st) => {
@@ -694,6 +702,14 @@ class KCFSCard extends HTMLElement {
     }
 
     this._attachEventHandlers();
+
+    // Restore dropdown selections that were in-progress before the re-render
+    if (Object.keys(savedSelections).length > 0) {
+      this._root.querySelectorAll('.spool-select').forEach(sel => {
+        const saved = savedSelections[sel.dataset.inputSelect];
+        if (saved !== undefined) sel.value = saved;
+      });
+    }
   }
 
   _renderNormalMode(boxes, external) {
