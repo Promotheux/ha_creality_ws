@@ -31,6 +31,8 @@ class SpoolmanSync:
         self._input_select_prefix: str = config.get(CONF_INPUT_SELECT_PREFIX, DEFAULT_INPUT_SELECT_PREFIX)
         self._last_active_slot: int | None = None
         self._unsub_listeners: list = []
+        # Track filament type+color per slot to detect changes and reset assignment
+        self._slot_filament_cache: dict[int, tuple[str, str]] = {}
 
     # ------------------------------------------------------------------
     # Public lifecycle
@@ -110,15 +112,36 @@ class SpoolmanSync:
         if not new_state:
             return
 
+        entity_id = event.data.get("entity_id", "")
+        slot_index = self._entity_to_slot_index(entity_id)
+        if slot_index is None:
+            return
+
+        # Detect filament type/color change — reset spool assignment if changed
+        current_type = str(new_state.attributes.get("type") or "")
+        current_color = str(new_state.attributes.get("color_hex") or "")
+        prev = self._slot_filament_cache.get(slot_index)
+        self._slot_filament_cache[slot_index] = (current_type, current_color)
+        if prev is not None and prev != (current_type, current_color):
+            input_entity = f"{self._input_select_prefix}{slot_index}"
+            _LOGGER.info(
+                "SpoolmanSync: filament changed on slot %s (%s → %s), resetting spool assignment",
+                slot_index, prev, (current_type, current_color),
+            )
+            try:
+                await self._hass.services.async_call(
+                    "input_select",
+                    "select_option",
+                    {"entity_id": input_entity, "option": "0: Niet in Spoolman"},
+                    blocking=False,
+                )
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.warning("SpoolmanSync: could not reset slot %s assignment: %s", slot_index, exc)
+
         selected = new_state.attributes.get("selected")
         if selected not in (1, True, "1"):
             # Slot became inactive — clear debounce so re-activation fires correctly
             self._last_active_slot = None
-            return
-
-        entity_id = event.data.get("entity_id", "")
-        slot_index = self._entity_to_slot_index(entity_id)
-        if slot_index is None:
             return
 
         if slot_index == self._last_active_slot:
