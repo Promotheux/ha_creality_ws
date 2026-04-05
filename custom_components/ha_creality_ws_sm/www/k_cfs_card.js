@@ -1092,7 +1092,11 @@ class KCFSCard extends HTMLElement {
       const slotType = el.dataset.slotType;
       if (!slotIndex) return;
 
-      el.onclick = () => this._openSpoolPicker(parseInt(slotIndex, 10), slotType);
+      el.onclick = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        this._openSpoolPicker(parseInt(slotIndex, 10), slotType);
+      };
     });
 
     // Mini spools and external — show more info as before
