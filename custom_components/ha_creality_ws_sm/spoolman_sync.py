@@ -168,17 +168,17 @@ class SpoolmanSync:
         """POST a GCode script to the Klipper REST endpoint."""
         session = async_get_clientsession(self._hass)
         try:
-            resp = await session.post(
+            async with session.post(
                 url,
-                params=params or None,
+                params=params,
                 timeout=aiohttp.ClientTimeout(total=5),
-            )
-            if resp.status != 200:
-                _LOGGER.warning(
-                    "SpoolmanSync: Klipper returned HTTP %s for %s",
-                    resp.status,
-                    url,
-                )
+            ) as resp:
+                if resp.status != 200:
+                    _LOGGER.warning(
+                        "SpoolmanSync: Klipper returned HTTP %s for %s",
+                        resp.status,
+                        url,
+                    )
         except aiohttp.ClientError as exc:
             _LOGGER.error("SpoolmanSync: Failed to call Klipper at %s: %s", url, exc)
         except Exception as exc:  # noqa: BLE001
