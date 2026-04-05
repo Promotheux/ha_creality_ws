@@ -58,3 +58,12 @@ MR_PORT = 7125
 MR_POLL_INTERVAL = 30
 MR_POLL_TIMEOUT = 5
 MR_QUERY_PARAMS = "objects=temperature_fan%20chamber_fan"
+
+# Spoolman integration
+CONF_SPOOLMAN_ENABLED = "spoolman_enabled"
+CONF_KLIPPER_PORT = "klipper_port"
+CONF_SPOOLMAN_PREFIX = "spoolman_prefix"
+CONF_INPUT_SELECT_PREFIX = "input_select_prefix"
+DEFAULT_KLIPPER_PORT = 4408
+DEFAULT_SPOOLMAN_PREFIX = "sensor.spoolman_spool_"
+DEFAULT_INPUT_SELECT_PREFIX = "input_select.cfs_slot_"
