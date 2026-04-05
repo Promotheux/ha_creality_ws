@@ -289,6 +289,18 @@ class KCFSCard extends HTMLElement {
         text-align: center;
       }
 
+      .spool-assignment {
+        font-size: 10px;
+        color: var(--primary-color);
+        text-align: center;
+        margin-top: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        opacity: 0.85;
+      }
+
       .spool-picker-overlay {
         position: fixed;
         inset: 0;
@@ -914,6 +926,13 @@ class KCFSCard extends HTMLElement {
 
     const badge = isActive ? '<div class="status-badge"></div>' : '';
 
+    const inputSelectPrefix = this._cfg.input_select_prefix || "input_select.cfs_slot_";
+    const inputSelectId = `${inputSelectPrefix}${globalSlotIndex}`;
+    const currentSpool = this._hass?.states?.[inputSelectId]?.state || "";
+    const spoolLabel = currentSpool && currentSpool !== "0: Niet in Spoolman"
+      ? currentSpool.replace(/^\d+:\s*/, '')
+      : '';
+
     return `
       <div class="spool-card ${isActive ? 'active' : ''}" data-eid="${slot.entity_id}" data-slot-index="${globalSlotIndex}" data-slot-type="${safeType}">
         ${badge}
@@ -926,6 +945,7 @@ class KCFSCard extends HTMLElement {
         </div>
         <div class="material-name">${safeName}</div>
         <div class="color-name">${percentTextDisplay}</div>
+        ${spoolLabel ? `<div class="spool-assignment" title="${currentSpool}">🧵 ${spoolLabel}</div>` : ''}
       </div>
     `;
   }
