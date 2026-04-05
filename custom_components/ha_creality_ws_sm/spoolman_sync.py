@@ -71,6 +71,21 @@ class SpoolmanSync:
         else:
             _LOGGER.debug("SpoolmanSync: no CFS filament sensor entities found at setup")
 
+        # Watch input_select entities so picking a spool on an already-active slot
+        # immediately updates Klipper without waiting for a slot-activation event
+        input_select_ids = [
+            eid for eid in self._hass.states.async_entity_ids("input_select")
+            if eid.startswith(self._input_select_prefix)
+        ]
+        if input_select_ids:
+            self._unsub_listeners.append(
+                async_track_state_change_event(
+                    self._hass,
+                    input_select_ids,
+                    self._on_input_select_changed,
+                )
+            )
+
     @property
     def _slot_count(self) -> int:
         """Total number of configured CFS slots from coordinator data."""
@@ -167,6 +182,48 @@ class SpoolmanSync:
             await self._set_active_spool(spool_id)
         else:
             await self._clear_active_spool()
+
+    async def _on_input_select_changed(self, event) -> None:
+        """Call Klipper immediately when a spool is picked on an already-active slot."""
+        new_state = event.data.get("new_state")
+        if not new_state:
+            return
+
+        entity_id = event.data.get("entity_id", "")
+        # Derive slot index from the input_select entity id
+        suffix = entity_id[len(self._input_select_prefix):]
+        try:
+            slot_index = int(suffix)
+        except ValueError:
+            return
+
+        # Only act if this slot is currently active
+        active_slot_entity = self._find_active_slot_entity(slot_index)
+        if not active_slot_entity:
+            return
+
+        selection = new_state.state
+        try:
+            spool_id = int(selection.split(":")[0].strip()) if ":" in selection else 0
+        except (ValueError, AttributeError):
+            spool_id = 0
+
+        if spool_id > 0:
+            await self._set_active_spool(spool_id)
+        else:
+            await self._clear_active_spool()
+
+    def _find_active_slot_entity(self, slot_index: int) -> str | None:
+        """Return the entity_id of the CFS filament sensor for slot_index if it is active."""
+        for eid in self._hass.states.async_entity_ids("sensor"):
+            if not ("_cfs_box_" in eid and "_slot_" in eid and eid.endswith("_filament")):
+                continue
+            if self._entity_to_slot_index(eid) != slot_index:
+                continue
+            st = self._hass.states.get(eid)
+            if st and st.attributes.get("selected") in (1, True, "1"):
+                return eid
+        return None
 
     async def _set_active_spool(self, spool_id: int) -> None:
         """Call Klipper to set the active spool."""
