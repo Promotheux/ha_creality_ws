@@ -210,7 +210,7 @@ class TestActiveSlotWatcher:
             })
 
             posted_urls = []
-            async def fake_post(url, **kwargs):
+            def fake_post(url, **kwargs):
                 posted_urls.append(url)
                 resp = MagicMock()
                 resp.status = 200
@@ -249,7 +249,7 @@ class TestActiveSlotWatcher:
             })
 
             posted_urls = []
-            async def fake_post(url, **kwargs):
+            def fake_post(url, **kwargs):
                 posted_urls.append(url)
                 resp = MagicMock()
                 resp.status = 200
