@@ -4,6 +4,12 @@ import logging
 import re
 import aiohttp
 
+from .const import (  # type: ignore[import]
+    CONF_KLIPPER_PORT, DEFAULT_KLIPPER_PORT,
+    CONF_SPOOLMAN_PREFIX, DEFAULT_SPOOLMAN_PREFIX,
+    CONF_INPUT_SELECT_PREFIX, DEFAULT_INPUT_SELECT_PREFIX,
+)
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -13,9 +19,9 @@ class SpoolmanSync:
     def __init__(self, hass, coordinator, config: dict) -> None:
         self._hass = hass
         self._coordinator = coordinator
-        self._klipper_port: int = int(config.get("klipper_port", 4408))
-        self._spoolman_prefix: str = config.get("spoolman_prefix", "sensor.spoolman_spool_")
-        self._input_select_prefix: str = config.get("input_select_prefix", "input_select.cfs_slot_")
+        self._klipper_port: int = int(config.get(CONF_KLIPPER_PORT, DEFAULT_KLIPPER_PORT))
+        self._spoolman_prefix: str = config.get(CONF_SPOOLMAN_PREFIX, DEFAULT_SPOOLMAN_PREFIX)
+        self._input_select_prefix: str = config.get(CONF_INPUT_SELECT_PREFIX, DEFAULT_INPUT_SELECT_PREFIX)
         self._last_active_slot: int | None = None
         self._unsub_listeners: list = []
 
