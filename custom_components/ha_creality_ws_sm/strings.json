@@ -38,7 +38,11 @@
           "notify_completed": "Notify when Completed",
           "notify_error": "Notify on Error",
           "notify_minutes_to_end": "Notify before Completion",
-          "minutes_to_end_value": "Minutes before Completion"
+          "minutes_to_end_value": "Minutes before Completion",
+          "spoolman_enabled": "Enable Spoolman Sync",
+          "klipper_port": "Klipper API Port",
+          "spoolman_prefix": "Spoolman Entity Prefix",
+          "input_select_prefix": "Slot Input Select Prefix"
         }
       }
     }

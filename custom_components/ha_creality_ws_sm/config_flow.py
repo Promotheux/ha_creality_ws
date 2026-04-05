@@ -32,6 +32,13 @@ from .const import (
     CONF_MINUTES_TO_END_VALUE,
     CONF_POLLING_RATE,
     DEFAULT_POLLING_RATE,
+    CONF_SPOOLMAN_ENABLED,
+    CONF_KLIPPER_PORT,
+    CONF_SPOOLMAN_PREFIX,
+    CONF_INPUT_SELECT_PREFIX,
+    DEFAULT_KLIPPER_PORT,
+    DEFAULT_SPOOLMAN_PREFIX,
+    DEFAULT_INPUT_SELECT_PREFIX,
 )
 from .utils import ModelDetection
 
@@ -242,7 +249,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         user_input[CONF_GO2RTC_PORT] = int(user_input[CONF_GO2RTC_PORT])
                     except (ValueError, TypeError):
                         user_input[CONF_GO2RTC_PORT] = DEFAULT_GO2RTC_PORT
-            
+
+            if user_input.get(CONF_KLIPPER_PORT) is not None:
+                try:
+                    user_input[CONF_KLIPPER_PORT] = int(user_input[CONF_KLIPPER_PORT])
+                except (ValueError, TypeError):
+                    user_input[CONF_KLIPPER_PORT] = DEFAULT_KLIPPER_PORT
+
             return self.async_create_entry(title="Printer Configuration", data=user_input)
 
         # Get current values with defaults  
@@ -278,8 +291,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         notify_minutes_to_end = self._entry.options.get(CONF_NOTIFY_MINUTES_TO_END, False)
         minutes_to_end_value = self._entry.options.get(CONF_MINUTES_TO_END_VALUE, 5)
         polling_rate = self._entry.options.get(CONF_POLLING_RATE, DEFAULT_POLLING_RATE)
+        spoolman_enabled = self._entry.options.get(CONF_SPOOLMAN_ENABLED, False)
+        klipper_port = self._entry.options.get(CONF_KLIPPER_PORT, DEFAULT_KLIPPER_PORT)
+        spoolman_prefix = self._entry.options.get(CONF_SPOOLMAN_PREFIX, DEFAULT_SPOOLMAN_PREFIX)
+        input_select_prefix = self._entry.options.get(CONF_INPUT_SELECT_PREFIX, DEFAULT_INPUT_SELECT_PREFIX)
 
-        
         # Build list of notify services for the selector
         notify_services = self.hass.services.async_services().get("notify", {})
         notify_service_options = []
@@ -363,6 +379,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
              vol.Optional(CONF_NOTIFY_MINUTES_TO_END, default=notify_minutes_to_end): selector.BooleanSelector(),
              vol.Optional(CONF_MINUTES_TO_END_VALUE, default=minutes_to_end_value): selector.NumberSelector(
                 selector.NumberSelectorConfig(min=1, max=60, mode=selector.NumberSelectorMode.BOX, unit_of_measurement="min")
+            ),
+             vol.Optional(CONF_SPOOLMAN_ENABLED, default=spoolman_enabled): selector.BooleanSelector(),
+             vol.Optional(CONF_KLIPPER_PORT, default=klipper_port): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=1, max=65535, mode=selector.NumberSelectorMode.BOX)
+            ),
+             vol.Optional(CONF_SPOOLMAN_PREFIX, default=spoolman_prefix): selector.TextSelector(
+                selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+            ),
+             vol.Optional(CONF_INPUT_SELECT_PREFIX, default=input_select_prefix): selector.TextSelector(
+                selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
             ),
         })
         
