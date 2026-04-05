@@ -226,40 +226,38 @@ class SpoolmanSync:
         return None
 
     async def _set_active_spool(self, spool_id: int) -> None:
-        """Call Klipper to set the active spool."""
+        """Set the active spool via Moonraker's Spoolman API."""
         host = self._coordinator.client._host
-        url = f"http://{host}:{self._klipper_port}/printer/gcode/script"
-        params = {"script": f"SET_ACTIVE_SPOOL ID={spool_id}"}
-        await self._post_klipper(url, params)
-        _LOGGER.info("SpoolmanSync: SET_ACTIVE_SPOOL ID=%s", spool_id)
+        url = f"http://{host}:{self._klipper_port}/server/spoolman/spool_id"
+        await self._call_moonraker(url, method="post", json={"spool_id": spool_id})
+        _LOGGER.info("SpoolmanSync: set active spool ID=%s", spool_id)
 
     async def _clear_active_spool(self) -> None:
-        """Call Klipper to clear the active spool."""
+        """Clear the active spool via Moonraker's Spoolman API."""
         host = self._coordinator.client._host
-        url = f"http://{host}:{self._klipper_port}/printer/gcode/script"
-        params = {"script": "CLEAR_ACTIVE_SPOOL"}
-        await self._post_klipper(url, params)
-        _LOGGER.info("SpoolmanSync: CLEAR_ACTIVE_SPOOL")
+        url = f"http://{host}:{self._klipper_port}/server/spoolman/spool_id"
+        await self._call_moonraker(url, method="delete")
+        _LOGGER.info("SpoolmanSync: cleared active spool")
 
-    async def _post_klipper(self, url: str, params: dict) -> None:
-        """POST a GCode script to the Klipper REST endpoint."""
+    async def _call_moonraker(self, url: str, method: str = "post", json: dict | None = None) -> None:
+        """Call the Moonraker REST API."""
         session = async_get_clientsession(self._hass)
         try:
-            async with session.post(
-                url,
-                params=params,
-                timeout=aiohttp.ClientTimeout(total=5),
-            ) as resp:
-                if resp.status != 200:
+            req = getattr(session, method)
+            kwargs: dict = {"timeout": aiohttp.ClientTimeout(total=5)}
+            if json is not None:
+                kwargs["json"] = json
+            async with req(url, **kwargs) as resp:
+                if resp.status not in (200, 204):
                     _LOGGER.warning(
-                        "SpoolmanSync: Klipper returned HTTP %s for %s",
+                        "SpoolmanSync: Moonraker returned HTTP %s for %s",
                         resp.status,
                         url,
                     )
         except aiohttp.ClientError as exc:
-            _LOGGER.error("SpoolmanSync: Failed to call Klipper at %s: %s", url, exc)
+            _LOGGER.error("SpoolmanSync: Failed to call Moonraker at %s: %s", url, exc)
         except Exception as exc:  # noqa: BLE001
-            _LOGGER.error("SpoolmanSync: Unexpected error calling Klipper: %s", exc)
+            _LOGGER.error("SpoolmanSync: Unexpected error calling Moonraker: %s", exc)
 
     async def async_unload(self) -> None:
         """Cancel all listeners and scheduled tasks."""

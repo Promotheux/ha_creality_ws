@@ -211,7 +211,7 @@ class TestActiveSlotWatcher:
 
             posted_calls = []
             def fake_post(url, **kwargs):
-                posted_calls.append((url, kwargs.get("params", {})))
+                posted_calls.append(("post", url, kwargs.get("json", {})))
                 resp = MagicMock()
                 resp.status = 200
                 resp.__aenter__ = AsyncMock(return_value=resp)
@@ -228,8 +228,8 @@ class TestActiveSlotWatcher:
                 await sync._on_slot_state_changed(event)
 
             assert any(
-                "script" in p and "SET_ACTIVE_SPOOL" in p["script"] and "ID=3" in p["script"]
-                for _, p in posted_calls
+                method == "post" and isinstance(body, dict) and body.get("spool_id") == 3
+                for method, _, body in posted_calls
             )
 
         asyncio.run(run())
@@ -251,9 +251,9 @@ class TestActiveSlotWatcher:
                 "new_state": new_state,
             })
 
-            posted_calls = []
-            def fake_post(url, **kwargs):
-                posted_calls.append((url, kwargs.get("params", {})))
+            deleted_urls = []
+            def fake_delete(url, **kwargs):
+                deleted_urls.append(url)
                 resp = MagicMock()
                 resp.status = 200
                 resp.__aenter__ = AsyncMock(return_value=resp)
@@ -261,7 +261,7 @@ class TestActiveSlotWatcher:
                 return resp
 
             mock_session = MagicMock()
-            mock_session.post = fake_post
+            mock_session.delete = fake_delete
 
             with patch(
                 "custom_components.ha_creality_ws_sm.spoolman_sync.async_get_clientsession",
@@ -269,10 +269,7 @@ class TestActiveSlotWatcher:
             ):
                 await sync._on_slot_state_changed(event)
 
-            assert any(
-                "script" in p and "CLEAR_ACTIVE_SPOOL" in p["script"]
-                for _, p in posted_calls
-            )
+            assert any("spoolman/spool_id" in url for url in deleted_urls)
 
         asyncio.run(run())
 
