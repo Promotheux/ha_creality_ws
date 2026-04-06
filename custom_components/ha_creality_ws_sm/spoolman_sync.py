@@ -236,7 +236,7 @@ class SpoolmanSync:
         """Clear the active spool via Moonraker's Spoolman API."""
         host = self._coordinator.client._host
         url = f"http://{host}:{self._klipper_port}/server/spoolman/spool_id"
-        await self._call_moonraker(url, method="delete")
+        await self._call_moonraker(url, method="post", json={"spool_id": None})
         _LOGGER.info("SpoolmanSync: cleared active spool")
 
     async def _call_moonraker(self, url: str, method: str = "post", json: dict | None = None) -> None:

@@ -251,9 +251,9 @@ class TestActiveSlotWatcher:
                 "new_state": new_state,
             })
 
-            deleted_urls = []
-            def fake_delete(url, **kwargs):
-                deleted_urls.append(url)
+            posted_calls = []
+            def fake_post(url, **kwargs):
+                posted_calls.append(("post", url, kwargs.get("json", {})))
                 resp = MagicMock()
                 resp.status = 200
                 resp.__aenter__ = AsyncMock(return_value=resp)
@@ -261,7 +261,7 @@ class TestActiveSlotWatcher:
                 return resp
 
             mock_session = MagicMock()
-            mock_session.delete = fake_delete
+            mock_session.post = fake_post
 
             with patch(
                 "custom_components.ha_creality_ws_sm.spoolman_sync.async_get_clientsession",
@@ -269,7 +269,10 @@ class TestActiveSlotWatcher:
             ):
                 await sync._on_slot_state_changed(event)
 
-            assert any("spoolman/spool_id" in url for url in deleted_urls)
+            assert any(
+                method == "post" and "spoolman/spool_id" in url and body.get("spool_id") is None
+                for method, url, body in posted_calls
+            )
 
         asyncio.run(run())
 

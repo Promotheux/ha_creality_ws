@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tools/tests/ -v --tb=short --ignore=tools/tests/test_manifest_and_specs.py --ignore=tools/tests/test_specs_unique.py)",
+      "Bash(python -m pytest tools/tests/test_spoolman_sync.py::TestSyncOptions tools/tests/test_spoolman_sync.py::TestActiveSlotWatcher -v)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(python -m pytest tools/tests/test_coordinator.py tools/tests/test_spoolman_sync.py -v)",
+      "Bash(git -C \"d:/Development/ha_creality_ws\" add custom_components/ha_creality_ws_sm/coordinator.py tools/tests/conftest.py)",
+      "Bash(git -C d:/Development/ha_creality_ws commit -m 'feat: integrate SpoolmanSync into coordinator lifecycle:*)",
+      "Bash(git -C \"d:/Development/ha_creality_ws\" add custom_components/ha_creality_ws_sm/www/k_cfs_card.js)",
+      "Bash(git -C d:/Development/ha_creality_ws commit -m 'fix: rename CFS card element to k-cfs-card-sm to avoid conflict with ha_creality_ws:*)",
+      "Bash(git -C \"d:/Development/ha_creality_ws\" push)",
+      "Bash(git -C \"d:/Development/ha_creality_ws\" add custom_components/ha_creality_ws_sm/www/k_printer_card.js)",
+      "Bash(git -C d:/Development/ha_creality_ws commit -m 'fix: rename printer card element to k-printer-card-sm to avoid conflict with ha_creality_ws:*)"
+    ]
+  }
+}
